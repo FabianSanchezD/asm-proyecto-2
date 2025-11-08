@@ -1,9 +1,7 @@
 ; ------------------------------------------------------------
-; IC3101 - PROYECTO 2 (Segundo Semestre 2025)
-; Producto interno de 2 vectores (longitud 6, float32) con AVX empacado
-; Base de código dividida en 4 métodos (uno por integrante)
-; Ensamblador: MASM x64 (ml64.exe). Convención Windows x64.
-; Devuelve resultado en XMM0 (float32).
+; IC3101 - Arquitectura de Computadores
+; Proyecto 2 - Producto interno de 2 vectores con AVX empacado
+; MASM x64, devuelve resultado en XMM0 (float32).
 ; ------------------------------------------------------------
 
 option casemap:none
@@ -13,14 +11,12 @@ extrn printf : proc
 includelib msvcrt.lib
 
 .data
-; --- Datos de prueba (cada quien puede cambiar sus casos en su función) ---
-; NOTA: Para facilitar cargas YMM (8 floats), se proveen versiones de 8 elementos
-; con los dos últimos en 0.0 (padding). Úsenlas si van a cargar YMM completos.
-align 32
+; --- Datos de prueba ---
+align 16
 A_8 REAL4  1.0,  2.0,  3.0,  4.0,  5.0,  6.0,  0.0,  0.0
 B_8 REAL4  0.5, -1.0,  2.0, -2.5,  1.5,  0.25, 0.0,  0.0
 
-; Versiones exactas de longitud 6 (por si prefieren mezclar XMM + YMM o manejar cola)
+; Versiones exactas de longitud 6
 align 16
 A_6 REAL4  1.0, 2.0, 3.0, 4.0, 5.0, 6.0
 B_6 REAL4  0.5,-1.0, 2.0,-2.5,1.5, 0.25
@@ -35,25 +31,33 @@ fmtStr  db "Metodo %d -> dot(A,B) = %f", 10, 0
 
 .code
 
-; ------------------------------------------------------------
-; Prototipos (cada integrante implementa su PROC)
-; Cada PROC debe:
-;   - Calcular sum_{i=1..6} A[i]*B[i] con instrucciones AVX empacadas
-;   - Devolver el resultado en XMM0 (float32)
-;   - (Opcional) guardar en res_metX para validar
-; ------------------------------------------------------------
-Dot_AVX_HAdd   PROC    ; Integrante 1: vmulps + reduccion con vhaddps / vextractf128
-    ; TODO Integrante 1:
-    ; 1) Cargar A y B (A_8/B_8 o A_6/B_6) en registros XMM/YMM.
-    ; 2) vmulps en paralelo.
-    ; 3) Reducir a un escalar (suma horizontal). Opciones:
-    ;    - vhaddps en pasos + vextractf128
-    ;    - permutaciones + vaddps
-    ; 4) mover el escalar final a XMM0.
-    ; 5) (opcional) guardarlo en res_met1.
-    vxorps xmm0, xmm0, xmm0
-    ret
-Dot_AVX_HAdd   ENDP
+reduccion_horizontal PROC
+    ; cargar primeros 4 elementos de los vectores
+    lea     rax, A_6
+    lea     rbx, B_6
+    vmovups xmm0, xmmword ptr [rax]
+    vmovups xmm1, xmmword ptr [rbx]
+    
+    ; multiplicar en paralelo primeros 4
+    vmulps  xmm0, xmm0, xmm1
+    
+    ; cargar ultimos 2 elementos
+    vmovsd  xmm2, qword ptr [rax + 16]
+    vmovsd  xmm3, qword ptr [rbx + 16]
+    
+    ; multiplicar ultimos 2
+    vmulps  xmm2, xmm2, xmm3 
+    
+    ; combinar productos
+    vaddps  xmm0, xmm0, xmm2
+    
+    ; reducción #1
+    vhaddps xmm0, xmm0, xmm0
+    
+    ; reducción #2
+    vhaddps xmm0, xmm0, xmm0 
+    ret ; xmm0 tiene el resultado
+reduccion_horizontal ENDP
 
 Dot_AVX_Perm   PROC    ; Integrante 2: vmulps + reduccion con vperm2f128 / vpermilps / vshufps
     ; TODO Integrante 2:
@@ -96,17 +100,16 @@ Dot_AVX_Tail   ENDP
 ; main: llama a los 4 metodos (para prueba). Cada quien edita SOLO su PROC.
 ; ------------------------------------------------------------
 main PROC
-    sub     rsp, 32                     ; shadow space
+    sub     rsp, 32
 
     ; Llamar metodo 1
-    call    Dot_AVX_HAdd
+    call    reduccion_horizontal
     vmovss  dword ptr [res_met1], xmm0
     ; printf("Metodo %d -> dot(A,B) = %f\n", 1, res_met1)
-    ; printf usa ABI varargs en MSVCRT; pasar float como double: ampliar a XMM1
     vcvtss2sd xmm1, xmm0, xmm0
-    mov     ecx, OFFSET fmtStr          ; 1er arg: const char*
-    mov     edx, 1                      ; 2do arg: int (metodo #)
-    sub     rsp, 32                     ; espacio para alinear stack de varargs
+    mov     rcx, OFFSET fmtStr
+    mov     edx, 1
+    sub     rsp, 32
     call    printf
     add     rsp, 32
 
@@ -114,7 +117,7 @@ main PROC
     call    Dot_AVX_Perm
     vmovss  dword ptr [res_met2], xmm0
     vcvtss2sd xmm1, xmm0, xmm0
-    mov     ecx, OFFSET fmtStr
+    mov     rcx, OFFSET fmtStr
     mov     edx, 2
     sub     rsp, 32
     call    printf
@@ -124,7 +127,7 @@ main PROC
     call    Dot_AVX_DPPS
     vmovss  dword ptr [res_met3], xmm0
     vcvtss2sd xmm1, xmm0, xmm0
-    mov     ecx, OFFSET fmtStr
+    mov     rcx, OFFSET fmtStr
     mov     edx, 3
     sub     rsp, 32
     call    printf
@@ -134,7 +137,7 @@ main PROC
     call    Dot_AVX_Tail
     vmovss  dword ptr [res_met4], xmm0
     vcvtss2sd xmm1, xmm0, xmm0
-    mov     ecx, OFFSET fmtStr
+    mov     rcx, OFFSET fmtStr
     mov     edx, 4
     sub     rsp, 32
     call    printf
