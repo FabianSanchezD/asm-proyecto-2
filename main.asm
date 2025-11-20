@@ -94,14 +94,28 @@ Dot_AVX_DPPS   PROC
 
 Dot_AVX_DPPS   ENDP
 
-Dot_AVX_Tail   PROC    ; Integrante 4: estrategia mixta (YMM para 4 + XMM para 2, sin leer fuera)
-    ; TODO Integrante 4:
-    ; 1) Cargar 4 elems en YMM/XMM y multiplicar (vmulps).
-    ; 2) Reducir esos 4 a escalar (hadd/perm/add).
-    ; 3) Cargar los 2 elems restantes en XMM, vmulps, sumarlos al escalar.
-    ; 4) Resultado final en XMM0.
-    ; 5) (opcional) guardar en res_met4.
-    vxorps xmm0, xmm0, xmm0
+Dot_AVX_Tail   PROC
+    ; Cargar primeros 4 elementos
+    lea     rax, A_6
+    lea     rbx, B_6
+    vmovups xmm1, xmmword ptr [rax]      ; A[0..3]
+    vmovups xmm2, xmmword ptr [rbx]      ; B[0..3]
+    vmulps  xmm1, xmm1, xmm2             ; A[0..3] * B[0..3]
+
+    ; Reducir a escalar
+    vhaddps xmm1, xmm1, xmm1             ; horizontal add
+    vhaddps xmm1, xmm1, xmm1             ; horizontal add
+    vmovss  xmm0, xmm1                   ; resultado parcial en xmm0
+
+    ; Cargar últimos 2 elementos
+    vmovsd  xmm3, qword ptr [rax + 16]   ; A[4..5]
+    vmovsd  xmm4, qword ptr [rbx + 16]   ; B[4..5]
+    vmulps  xmm3, xmm3, xmm4             ; A[4..5] * B[4..5]
+
+    ; Sumar los dos productos
+    vhaddps xmm3, xmm3, xmm3             ; sumar A[4]*B[4] + A[5]*B[5]
+    vaddss  xmm0, xmm0, xmm3             ; resultado final
+
     ret
 Dot_AVX_Tail   ENDP
 
