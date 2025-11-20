@@ -70,19 +70,30 @@ Dot_AVX_Perm   PROC    ; Integrante 2: vmulps + reduccion con vperm2f128 / vperm
     ret
 Dot_AVX_Perm   ENDP
 
-Dot_AVX_DPPS   PROC    ; Integrante 3: usar VDPPS (dot product) por bloques y combinar
-    ; Pista: VDPPS (instrucción AVX) acepta XMM/YMM y máscara (imm8).
-    ; Para longitud 6, pueden:
-    ;   - hacer dot de los primeros 4 elementos (mask 0xF1 ó similar),
-    ;   - luego sumar el dot de los 2 restantes (con máscara que seleccione solo esos),
-    ;   - combinar resultados (vaddss).
-    ; TODO Integrante 3:
-    ; 1) Preparar máscaras inmediatas.
-    ; 2) vdp_ps para 4 elems y para 2 elems (zero-pad o usar XMM de 128 bits).
-    ; 3) Sumar parciales y dejarlo en XMM0.
-    ; 4) (opcional) guardar en res_met3.
-    vxorps xmm0, xmm0, xmm0
-    ret
+Dot_AVX_DPPS   PROC
+
+    ;cargar la primera parte de los vectores (primeros 4 elementos) que se van a utilizar en la operacion produto punto
+    vmovups xmm1, xmmword ptr [A_6]
+    vmovups xmm2, xmmword ptr [B_6]
+
+    ;realizar la operacion producto punto con los primeros 4 elementos de los vectores
+    vdpps   xmm0, xmm1, xmm2, 0F1h ;0F1h pone el resultado solo en el primer elemento del registro
+
+    ;cargar los elementos faltantes (ultimos 2) de los vectores
+    vmovsd  xmm3, qword ptr [A_6 + 16]
+    vmovsd  xmm4, qword ptr [B_6 + 16]
+
+    ;producto punto de los dos elementos restantes de los vectores
+    vdpps   xmm5, xmm3, xmm4, 031h
+
+    ;sumar los resultados del producto punto realizado por partes (los primeros 4 elementos + los 2 elementos restantes
+    vaddss  xmm0, xmm0, xmm5
+
+    ;guardar el resultado final del producto punto en res_met3
+    vmovss  dword ptr [res_met3], xmm0
+
+    ret ;retorna el resultado del producto punto que quedo en xmm0
+
 Dot_AVX_DPPS   ENDP
 
 Dot_AVX_Tail   PROC    ; Integrante 4: estrategia mixta (YMM para 4 + XMM para 2, sin leer fuera)
