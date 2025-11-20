@@ -109,50 +109,47 @@ Dot_AVX_Tail   ENDP
 ; main: llama a los 4 metodos (para prueba). Cada quien edita SOLO su PROC.
 ; ------------------------------------------------------------
 main PROC
-    sub     rsp, 32
+    sub     rsp, 40
 
-    ; Llamar metodo 1
+    ;Llamar metodo 1
     call    reduccion_horizontal
     vmovss  dword ptr [res_met1], xmm0
+
     ; printf("Metodo %d -> dot(A,B) = %f\n", 1, res_met1)
-    vcvtss2sd xmm1, xmm0, xmm0
+    vcvtss2sd xmm2, xmm0, xmm0
     mov     rcx, OFFSET fmtStr
     mov     edx, 1
-    sub     rsp, 32
     call    printf
-    add     rsp, 32
 
     ; Llamar metodo 2
     call    Dot_AVX_Perm
     vmovss  dword ptr [res_met2], xmm0
-    vcvtss2sd xmm1, xmm0, xmm0
+
+    vcvtss2sd xmm2, xmm0, xmm0
     mov     rcx, OFFSET fmtStr
     mov     edx, 2
-    sub     rsp, 32
     call    printf
-    add     rsp, 32
 
     ; Llamar metodo 3
     call    Dot_AVX_DPPS
     vmovss  dword ptr [res_met3], xmm0
-    vcvtss2sd xmm1, xmm0, xmm0
+
+    vcvtss2sd xmm2, xmm0, xmm0
     mov     rcx, OFFSET fmtStr
     mov     edx, 3
-    sub     rsp, 32
     call    printf
-    add     rsp, 32
 
     ; Llamar metodo 4
     call    Dot_AVX_Tail
     vmovss  dword ptr [res_met4], xmm0
-    vcvtss2sd xmm1, xmm0, xmm0
+
+    vcvtss2sd xmm2, xmm0, xmm0
     mov     rcx, OFFSET fmtStr
     mov     edx, 4
-    sub     rsp, 32
     call    printf
-    add     rsp, 32
 
-    add     rsp, 32
+    add     rsp, 40
+    xor     eax, eax
     ret
 main ENDP
 
