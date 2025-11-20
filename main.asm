@@ -32,23 +32,21 @@ fmtStr  db "Metodo %d -> dot(A,B) = %f", 10, 0
 .code
 
 reduccion_horizontal PROC
-    ; cargar primeros 4 elementos de los vectores
-    lea     rax, A_6
-    lea     rbx, B_6
-    vmovups xmm0, xmmword ptr [rax]
-    vmovups xmm1, xmmword ptr [rbx]
+    ; cargar primeros 4 elementos de los vectores para usarlos en la operacion producto punto
+    vmovups xmm0, xmmword ptr [A_6]
+    vmovups xmm1, xmmword ptr [B_6]
     
-    ; multiplicar en paralelo primeros 4
+    ;multiplicar en paralelo primeros 4 elementos de los vectores
     vmulps  xmm0, xmm0, xmm1
     
-    ; cargar ultimos 2 elementos
-    vmovsd  xmm2, qword ptr [rax + 16]
-    vmovsd  xmm3, qword ptr [rbx + 16]
+    ;cargar los 2 elementos restantes de los vectores para usarlos en la operacion producto punto
+    vmovsd  xmm2, qword ptr [A_6  + 16]
+    vmovsd  xmm3, qword ptr [B_6  + 16]
     
-    ; multiplicar ultimos 2
+    ;multiplicar los 2 elementos restantes de los vectores
     vmulps  xmm2, xmm2, xmm3 
     
-    ; combinar productos
+    ;sumar los productos de las multiplicaciones de ambas partes del vector
     vaddps  xmm0, xmm0, xmm2
     
     ; reducción #1
